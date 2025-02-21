@@ -93,3 +93,23 @@ exports.uploadProfile = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+exports.getUserProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).select('-password'); // Exclude password from the response
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        res.json({
+            success: true,
+            user: {
+                fullname: user.fullname,
+                email: user.email,
+                avatar: user.avatar || '',  // Avatar URL if available
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
