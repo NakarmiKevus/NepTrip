@@ -45,6 +45,8 @@ exports.userSignIn = async (req, res) => {
             fullname: user.fullname,
             email: user.email,
             avatar: user.avatar || '',
+            phoneNumber: user.phoneNumber || '',
+            address: user.address || '',
         };
 
         res.json({
@@ -106,10 +108,74 @@ exports.getUserProfile = async (req, res) => {
                 fullname: user.fullname,
                 email: user.email,
                 avatar: user.avatar || '',  // Avatar URL if available
+                phoneNumber: user.phoneNumber || '',
+                address: user.address || ''
             }
         });
     } catch (error) {
         console.error('Error fetching user profile:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// New controller function for updating user profile
+exports.updateUserProfile = async (req, res) => {
+    try {
+        const user_id = req.user._id;
+        const { fullname, email, phoneNumber, address } = req.body;
+        
+        // Check if email is already in use by another user
+        if (email) {
+            const existingUser = await User.findOne({ email, _id: { $ne: user_id } });
+            if (existingUser) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'Email is already in use by another account' 
+                });
+            }
+        }
+        
+        // Prepare update object
+        const updateData = {
+            fullname,
+            email,
+            phoneNumber,
+            address
+        };
+        
+        // Handle image upload if provided
+        if (req.file) {
+            const result = await cloudinary.uploader.upload(req.file.path, {
+                public_id: `${user_id}_profile`,
+                width: 500,
+                height: 500,
+                crop: 'fill'
+            });
+            
+            updateData.avatar = result.secure_url;
+        }
+        
+        // Update user data
+        const updatedUser = await User.findByIdAndUpdate(
+            user_id,
+            updateData,
+            { new: true }
+        ).select('-password');
+        
+        res.json({
+            success: true,
+            message: 'Profile updated successfully',
+            user: {
+                fullname: updatedUser.fullname,
+                email: updatedUser.email,
+                avatar: updatedUser.avatar || '',
+                phoneNumber: updatedUser.phoneNumber || '',
+                address: updatedUser.address || ''
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error updating profile:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
